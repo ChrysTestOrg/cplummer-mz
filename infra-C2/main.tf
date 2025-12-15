@@ -168,7 +168,7 @@ resource "aws_ssmquicksetup_configuration_manager" "example" {
       "RecordAllResources": true,
       "GlobalResourceTypesRegion": data.aws_region.member.region,
       "DeliveryBucketName": aws_s3_bucket.member_config.bucket,
-      "TargetRegions": "us-east-1,us-west-2"
+      "TargetRegions": join(",", var.allowed_regions)
     }
   }
 }
@@ -279,3 +279,59 @@ data "aws_iam_policy_document" "config_access" {
 #  name               = "awsconfig-example"
 #  assume_role_policy = data.aws_iam_policy_document.assume_role.json
 #}
+
+resource "aws_config_config_rule" "member_guardrails_global" {
+  provider = aws.member
+  #  depends_on = [aws_config_configuration_recorder.foo]
+
+  for_each = toset(var.desired_managed_rules_global)
+  name = each.key
+
+  source {
+    owner             = "AWS"
+    source_identifier = each.key
+  }
+}
+
+locals {
+  rules_by_region = [
+    for pair in setproduct(var.allowed_regions, var.desired_managed_rules_regional) : {
+      region_key = pair[0]
+      rule_key = pair[1]
+    }
+  ]
+}
+
+resource "aws_config_config_rule" "member_guardrails_region0" {
+  provider = aws.member
+  #  depends_on = [aws_config_configuration_recorder.foo]
+
+  #  for_each = tomap({
+  #  for rule in local.rules_by_region : 
+  #    "${rule.rule_key}_${rule.region_key}" => rule
+  #})
+
+  for_each = toset(var.desired_managed_rules_regional)
+  name = each.key
+
+  source {
+    owner             = "AWS"
+    source_identifier = each.key
+  }
+}
+
+resource "aws_config_config_rule" "member_guardrails_region1" {
+  provider = aws.member
+  region = one(setsubtract(toset(var.allowed_regions),toset([var.primary_region])))
+  #  depends_on = [aws_config_configuration_recorder.foo]
+
+  for_each = toset(var.desired_managed_rules_regional)
+  name = each.key
+
+  source {
+    owner             = "AWS"
+    source_identifier = each.key
+  }
+}
+########## Config Rules for compliance checking
+##########   //end//
