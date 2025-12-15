@@ -32,22 +32,22 @@ resource "aws_cloudtrail" "member_trail" {
 
   name                          = "management-events-trail"
   s3_bucket_name                = aws_s3_bucket.central_log_bucket.id
-  is_multi_region_trail = true
+  is_multi_region_trail         = true
   include_global_service_events = true
-  enable_log_file_validation = true
-  enable_logging = true
-  kms_key_id = aws_kms_key.member_key.arn
+  enable_log_file_validation    = true
+  enable_logging                = true
+  kms_key_id                    = aws_kms_key.member_key.arn
 }
 
 resource "aws_kms_key" "member_key" {
-  provider = aws.member
+  provider    = aws.member
   description = "CloudTrail log encryption key"
 }
 
 resource "aws_kms_key_policy" "member_key_policy" {
   provider = aws.member
-  key_id = aws_kms_key.member_key.id
-  policy = data.aws_iam_policy_document.kms_cloudtrail_access.json
+  key_id   = aws_kms_key.member_key.id
+  policy   = data.aws_iam_policy_document.kms_cloudtrail_access.json
 }
 
 resource "aws_s3_bucket" "central_log_bucket" {
@@ -75,7 +75,7 @@ data "aws_iam_policy_document" "cloudtrail_access" {
     condition {
       test     = "StringEquals"
       variable = "aws:SourceArn"
-      values   = [
+      values = [
         aws_cloudtrail.member_trail.arn
       ]
     }
@@ -116,7 +116,7 @@ data "aws_iam_policy_document" "kms_cloudtrail_access" {
       identifiers = ["cloudtrail.amazonaws.com"]
     }
 
-    actions   = [
+    actions = [
       "kms:Decrypt",
       "kms:GenerateDataKey*"
     ]
@@ -160,21 +160,21 @@ data "aws_iam_policy_document" "kms_cloudtrail_access" {
 ##########   //start//
 resource "aws_ssmquicksetup_configuration_manager" "example" {
   provider = aws.member
-  name = "config-recording-all-regions"
+  name     = "config-recording-all-regions"
 
   configuration_definition {
     type = "AWSQuickSetupType-CFGRecording"
     parameters = {
-      "RecordAllResources": true,
-      "GlobalResourceTypesRegion": data.aws_region.member.region,
-      "DeliveryBucketName": aws_s3_bucket.member_config.bucket,
-      "TargetRegions": join(",", var.allowed_regions)
+      "RecordAllResources" : true,
+      "GlobalResourceTypesRegion" : data.aws_region.member.region,
+      "DeliveryBucketName" : aws_s3_bucket.member_config.bucket,
+      "TargetRegions" : join(",", var.allowed_regions)
     }
   }
 }
 
 resource "aws_iam_service_linked_role" "member_config" {
-  provider = aws.member
+  provider         = aws.member
   aws_service_name = "config.amazonaws.com"
 }
 
@@ -197,7 +197,7 @@ resource "aws_iam_service_linked_role" "member_config" {
 resource "aws_s3_bucket" "member_config" {
   provider = aws.member
 
-#  bucket        = "chprorg-${data.aws_caller_identity.member.account_id}-${data.aws_region.member.region}"
+  #  bucket        = "chprorg-${data.aws_caller_identity.member.account_id}-${data.aws_region.member.region}"
   bucket        = "config-bucket-${data.aws_caller_identity.member.account_id}"
   force_destroy = true
 }
@@ -211,7 +211,7 @@ resource "aws_s3_bucket_policy" "config_access" {
 
 data "aws_iam_policy_document" "config_access" {
   statement {
-    sid = "AWSConfigBucketCheck"
+    sid    = "AWSConfigBucketCheck"
     effect = "Allow"
 
     principals {
@@ -223,8 +223,8 @@ data "aws_iam_policy_document" "config_access" {
       "s3:ListBucket"
     ]
     resources = [aws_s3_bucket.member_config.arn]
-    condition { 
-      test = "StringEquals"
+    condition {
+      test     = "StringEquals"
       variable = "aws:SourceAccount"
       values   = [data.aws_caller_identity.member.account_id]
     }
@@ -285,7 +285,7 @@ resource "aws_config_config_rule" "member_guardrails_global" {
   #  depends_on = [aws_config_configuration_recorder.foo]
 
   for_each = toset(var.desired_managed_rules_global)
-  name = each.key
+  name     = each.key
 
   source {
     owner             = "AWS"
@@ -297,7 +297,7 @@ locals {
   rules_by_region = [
     for pair in setproduct(var.allowed_regions, var.desired_managed_rules_regional) : {
       region_key = pair[0]
-      rule_key = pair[1]
+      rule_key   = pair[1]
     }
   ]
 }
@@ -312,7 +312,7 @@ resource "aws_config_config_rule" "member_guardrails_region0" {
   #})
 
   for_each = toset(var.desired_managed_rules_regional)
-  name = each.key
+  name     = each.key
 
   source {
     owner             = "AWS"
@@ -322,11 +322,11 @@ resource "aws_config_config_rule" "member_guardrails_region0" {
 
 resource "aws_config_config_rule" "member_guardrails_region1" {
   provider = aws.member
-  region = one(setsubtract(toset(var.allowed_regions),toset([var.primary_region])))
+  region   = one(setsubtract(toset(var.allowed_regions), toset([var.primary_region])))
   #  depends_on = [aws_config_configuration_recorder.foo]
 
   for_each = toset(var.desired_managed_rules_regional)
-  name = each.key
+  name     = each.key
 
   source {
     owner             = "AWS"
@@ -334,4 +334,62 @@ resource "aws_config_config_rule" "member_guardrails_region1" {
   }
 }
 ########## Config Rules for compliance checking
+##########   //end//
+
+
+
+########## Baseline IAM Roles
+##########   //start//
+data "aws_iam_policy_document" "default_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.member.account_id}:root"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "default_boundary_policy" {
+
+}
+
+resource "aws_iam_policy" "default_boundary_policy" {
+  name   = "boundary-policy-standard"
+  path   = "/base/"
+  policy = data.aws_iam_policy_document.default_boundary_policy.json
+}
+
+resource "aws_iam_role" "readonly_admin" {
+  provider             = aws.member
+  name                 = "ReadOnlyAdmin"
+  path                 = "/base/"
+  assume_role_policy   = data.aws_iam_policy_document.default_assume_role_policy.json
+  permissions_boundary = aws_iam_policy.default_boundary_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "readonly_managed" {
+  provider   = aws.member
+  role       = aws_iam_role.readonly_admin
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
+
+resource "aws_iam_role" "developer" {
+  provider             = aws.member
+  name                 = "Developer"
+  path                 = "/base/"
+  assume_role_policy   = data.aws_iam_policy_document.default_assume_role_policy.json
+  permissions_boundary = aws_iam_policy.default_boundary_policy.arn
+}
+
+resource "aws_iam_role" "database_admin" {
+  provider             = aws.member
+  name                 = "DatabaseAdmin"
+  path                 = "/base/"
+  assume_role_policy   = data.aws_iam_policy_document.default_assume_role_policy.json
+  permissions_boundary = aws_iam_policy.default_boundary_policy.arn
+}
+
+########## Baseline IAM Roles
 ##########   //end//

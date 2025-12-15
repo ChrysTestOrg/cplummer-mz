@@ -1,17 +1,17 @@
 variable "primary_region" {
-  type = string
+  type        = string
   description = "Home region for the account"
-  default = "us-east-1"
+  default     = "us-east-1"
 }
 
 variable "allowed_regions" {
-  type = list(string)
+  type        = list(string)
   description = "List of regions that are allowed"
-  default = [ "us-east-1", "us-west-2" ]
+  default     = ["us-east-1", "us-west-2"]
 }
 
 variable "desired_managed_rules_regional" {
-  type = list(string)
+  type        = list(string)
   description = "List of AWS Managed Config Rules that should be enabled"
   default = [
     "CLOUDTRAIL_S3_BUCKET_PUBLIC_ACCESS_PROHIBITED",
@@ -32,7 +32,7 @@ variable "desired_managed_rules_regional" {
 }
 
 variable "desired_managed_rules_global" {
-  type = list(string)
+  type        = list(string)
   description = "List of AWS Managed Config Rules that should be enabled for global resources"
   default = [
     "ACCESS_KEYS_ROTATED",

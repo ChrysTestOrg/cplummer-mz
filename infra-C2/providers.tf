@@ -1,10 +1,10 @@
 terraform {
   backend "s3" {
-    bucket = "chpr-org-terraform-state-us-east-1"
-    key    = "solutions/mz/infra-C2"
-    region = "us-east-1"
+    bucket       = "chpr-org-terraform-state-us-east-1"
+    key          = "solutions/mz/infra-C2"
+    region       = "us-east-1"
     use_lockfile = true
-    profile = "org"
+    profile      = "org"
   }
 
   required_providers {
