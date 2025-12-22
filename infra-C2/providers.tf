@@ -16,8 +16,18 @@ terraform {
 }
 
 provider "aws" {
+  alias   = "mgmt"
   profile = "org"
   region  = "us-east-1"
+  default_tags {
+    tags = {
+      managed_by = "terraform"
+      solution   = "infra-C2"
+    }
+  }
+  #  default_tags {
+  #  managed_by = terraform
+  #}
 }
 
 #provider "aws" {
@@ -27,6 +37,12 @@ provider "aws" {
 #}
 
 provider "aws" {
-  alias   = "member"
+  #  alias   = "member"
   profile = "member"
+  default_tags {
+    tags = {
+      managed_by = "terraform"
+      solution   = "infra-C2"
+    }
+  }
 }

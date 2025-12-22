@@ -1,0 +1,54 @@
+{
+ "Version":"2012-10-17",		 	 	 
+ "Statement": [
+     {
+         "Sid": "DenyAllUnlessEnvTagMatchesPrincipal",
+         "Effect": "Deny",
+         "Action": "*",
+         "Resource": "*",
+         "Condition": {
+	     "Null": {
+	         "aws:ResourceTag/env": "false"
+             },
+	      "StringNotEquals": {
+		 "aws:ResourceTag/env": "${aws:PrincipalTag/env}" 
+	      }
+         }
+     },
+     {
+         "Sid": "DenyUpdateOtherTagsUnlessEnvMatchesPrincipal",
+         "Effect": "Deny",
+         "Action": "*",
+         "Resource": "*",
+         "Condition": {
+             "Null": {
+                 "aws:TagKeys": "false"
+             },
+             "ForAllValues:StringNotEquals": {
+                 "aws:TagKeys": [ "env" ]
+             },
+             "StringNotEquals": {
+                 "aws:ResourceTag/env": "${aws:PrincipalTag/env}"
+             }
+         }
+     },
+     {
+         "Sid": "DenyUpdateEnvTagUnlessMatchesPrincipal",
+         "Effect": "Deny",
+         "Action": "*",
+         "Resource": "*",
+         "Condition": {
+             "Null": {
+                 "aws:TagKeys": "false"
+             },
+             "ForAnyValue:StringEquals": {
+                 "aws:TagKeys": [ "env" ]
+             },
+             "StringNotEquals": {
+                 "aws:RequestTag/env": "${aws:PrincipalTag/env}"
+             }
+         }
+     }
+  ]
+}
+

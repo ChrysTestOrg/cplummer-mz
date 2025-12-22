@@ -14,7 +14,7 @@ variable "desired_managed_rules_regional" {
   type        = list(string)
   description = "List of AWS Managed Config Rules that should be enabled"
   default = [
-    "CLOUDTRAIL_S3_BUCKET_PUBLIC_ACCESS_PROHIBITED",
+    #    "CLOUDTRAIL_S3_BUCKET_PUBLIC_ACCESS_PROHIBITED",
     "CLOUDTRAIL_SECURITY_TRAIL_ENABLED",
     "EBS_SNAPSHOT_PUBLIC_RESTORABLE_CHECK",
     "EC2_EBS_ENCRYPTION_BY_DEFAULT",
@@ -35,7 +35,7 @@ variable "desired_managed_rules_global" {
   type        = list(string)
   description = "List of AWS Managed Config Rules that should be enabled for global resources"
   default = [
-    "ACCESS_KEYS_ROTATED",
+    #    "ACCESS_KEYS_ROTATED",
     "IAM_PASSWORD_POLICY",
     "IAM_ROOT_ACCESS_KEY_CHECK",
     "ROOT_ACCOUNT_MFA_ENABLED"
