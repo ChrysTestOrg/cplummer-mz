@@ -130,7 +130,7 @@ Terraform configuration that implements a governance and security configuration 
 - *Policy*: Redshift clusters should have `PubliclyAccessible` set to false.
 - *Rationale*: Prevents the cluster from being reachable from the internet, reducing exposure to unauthorized queries and data exfiltration.
 
-[S3_ACCESS_POINT_PUBLIC_ACCESS_BLOCKS] (https://docs.aws.amazon.com/config/latest/developerguide/s3-access-point-public-access-blocks.html) (regional)
+[S3_ACCESS_POINT_PUBLIC_ACCESS_BLOCKS](https://docs.aws.amazon.com/config/latest/developerguide/s3-access-point-public-access-blocks.html) (regional)
 - *Policy*: All S3 access points should be restricted from public access.
 - *Rationale*: Blocking public access prevents accidental data exposure, a common cause of data breaches in cloud storage.
 - *Optional Parameters*: 
@@ -168,7 +168,7 @@ Terraform configuration that implements a governance and security configuration 
 - *Policy*: Redshift clusters should have `require_SSL` parameter set to true.
 - *Rationale*: Encryption in transit for SQL clients prevents exposure of data while it traverses the network.
 
-[S3_BUCKET_SSL_REQUESTS_ONLY] (https://docs.aws.amazon.com/config/latest/developerguide/s3-bucket-ssl-requests-only.html) (regional)
+[S3_BUCKET_SSL_REQUESTS_ONLY](https://docs.aws.amazon.com/config/latest/developerguide/s3-bucket-ssl-requests-only.html) (regional)
 - *Policy*: S3 buckets should have policies to prevent access via unencrypted (i.e. HTTP) connections.
 - *Rationale*: Encryption in transit prevents exposure of data while it traverses the network.
 
