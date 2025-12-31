@@ -33,9 +33,7 @@ Terraform configuration that implements a governance and security configuration 
 - *Policy*: AWS Config delivery channels and configuration recorders should be enabled in all approved regions. The AWS Systems Manager (SSM) Quick Setup Configuration Manager enables automatic deployment of these required components to multiple target regions.
 - *Rationale*: As a regional service, it is necessary to setup AWS Config separately in each region where resources need to be monitored. Utilizing SSM Quick Setup simplifies the deployment and configuration of an AWS Config configuration recorder and delivery channel to all approved regions, and enables easy onboarding of additional regions in the future as needed.
 
-#### AWS-managed Config Rules
-
-##### Rules enforcing audit logging and credential management standards
+#### AWS-managed Config Rules to detect non-compliance - audit logging and credential management standards
 
 [ACCESS_KEYS_ROTATED](https://docs.aws.amazon.com/config/latest/developerguide/access-keys-rotated.html) (global)
 - *Policy*: All IAM access keys should be rotated at least once every 90 days.
@@ -76,7 +74,7 @@ Terraform configuration that implements a governance and security configuration 
   - is encrypted with a KMS key
 - *Rationale*: Continuous audit logging captures administrative actions, enabling detection of suspicious activity and supporting forensic investigations.
 
-##### Rules to detect publicly accessible resources:
+#### AWS-managed Config Rules to detect non-compliance - publicly accessible resources
 
 [EBS_SNAPSHOT_PUBLIC_RESTORABLE_CHECK](https://docs.aws.amazon.com/config/latest/developerguide/ebs-snapshot-public-restorable-check.html) (regional)
 - *Policy*: EBS snapshots should not be shared publicly.
@@ -102,7 +100,7 @@ Terraform configuration that implements a governance and security configuration 
 - *Policy*: RDS snapshots should not be shared publicly.
 - *Rationale*: Public snapshot sharing can leak entire database contents, including sensitive customer or business data.
 
-##### Rules to detect resources with unencrypted data at rest
+#### AWS-managed Config Rules to detect non-compliance - unencrypted data at rest
 
 [EC2_EBS_ENCRYPTION_BY_DEFAULT](https://docs.aws.amazon.com/config/latest/developerguide/ec2-ebs-encryption-by-default.html) (regional)
 - *Policy*: The account‑level setting “EBS encryption by default” should be enabled, ensuring all newly created EBS volumes are encrypted at rest.
@@ -142,7 +140,7 @@ Terraform configuration that implements a governance and security configuration 
 - *Optional Parameters*: 
   - `excludedAccessPoints` - (CSV) list of allowed public S3 bucket names
 
-##### Optional Rules to enforce MFA and encryption in transit (not currently enabled):
+#### Optional (not currently enabled) AWS-managed Config Rules to detect non-compliance - user MFA and encryption in transit
 
 [IAM_USER_MFA_ENABLED](https://docs.aws.amazon.com/config/latest/developerguide/iam-user-mfa-enabled.html) (global)
 - *Policy*: All IAM users with password-based access to the AWS management console should have MFA enabled.
