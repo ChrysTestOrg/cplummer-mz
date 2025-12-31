@@ -518,23 +518,11 @@ data "aws_iam_policy_document" "default_assume_role_policy" {
   }
 }
 
-#data "aws_iam_policy_document" "default_boundary_policy" {
-#
-#}
-
-#resource "aws_iam_policy" "default_boundary_policy" {
-#  name   = "boundary-policy-standard"
-#  path   = "/base/"
-#  #  policy = data.aws_iam_policy_document.default_boundary_policy.json
-#  policy = file("${path.module}/policy/default_boundary.json")
-#}
-
 resource "aws_iam_role" "readonly_admin" {
   name               = "ReadOnlyAdmin"
   description        = "Baseline read-only role"
   path               = "/base/"
   assume_role_policy = data.aws_iam_policy_document.default_assume_role_policy.json
-  #  permissions_boundary = aws_iam_policy.default_boundary_policy.arn
 }
 
 resource "aws_iam_role_policy_attachment" "readonly_managed" {
@@ -547,7 +535,6 @@ resource "aws_iam_role" "developer" {
   description        = "Baseline developer role"
   path               = "/base/"
   assume_role_policy = data.aws_iam_policy_document.default_assume_role_policy.json
-  #  permissions_boundary = aws_iam_policy.default_boundary_policy.arn
   tags = {
     env = "dev"
   }
@@ -598,7 +585,6 @@ resource "aws_iam_role" "database_admin" {
   description        = "Baseline database administrator role, initially based on AWS-managed job function policy"
   path               = "/base/"
   assume_role_policy = data.aws_iam_policy_document.default_assume_role_policy.json
-  #  permissions_boundary = aws_iam_policy.default_boundary_policy.arn
   tags = {
     Name = "DatabaseAdmin"
   }
