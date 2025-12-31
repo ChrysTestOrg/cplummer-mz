@@ -25,19 +25,9 @@ provider "aws" {
       solution   = "infra-C2"
     }
   }
-  #  default_tags {
-  #  managed_by = terraform
-  #}
 }
 
-#provider "aws" {
-#  alias   = "logs"
-#  profile = "logs"
-#  region  = "us-east-1"
-#}
-
 provider "aws" {
-  #  alias   = "member"
   profile = "member"
   default_tags {
     tags = {
