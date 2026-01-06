@@ -4,6 +4,7 @@ data "aws_partition" "member" {}
 
 data "aws_region" "member" {}
 
+
 ########## start: SCP to limit access to specific regions
 resource "aws_organizations_policy" "restrict_regions" {
   provider = aws.mgmt
@@ -24,6 +25,7 @@ resource "aws_organizations_policy_attachment" "account" {
   target_id = data.aws_caller_identity.member.account_id
 }
 ########## end: SCP to limit access to specific regions
+
 
 ########## start: CloudTrail logging to separate account
 resource "aws_cloudtrail" "member_trail" {
@@ -241,6 +243,7 @@ data "aws_iam_policy_document" "kms_cloudtrail_access" {
 }
 ########## end: CloudTrail logging to separate account
 
+
 ########## start: AWS Config setup for compliance checking using SSM Quick Setup
 data "aws_iam_policy_document" "cfn_assume_role_policy" {
   statement {
@@ -336,25 +339,13 @@ resource "aws_ssmquicksetup_configuration_manager" "member_config_quicksetup" {
 }
 ########## end: AWS Config setup for compliance checking using SSM Quick Setup
 
-#resource "aws_config_delivery_channel" "member" {
-#  provider = aws.member
-#  depends_on     = [aws_config_configuration_recorder.member]
-#
-#  s3_bucket_name = aws_s3_bucket.member_config.bucket
-#  sns_topic_arn = aws_sns_config.member_notifications
-#  snapshot_delivery_properties {
-#    delivery_frequency = "One_Hour"
-#  }
-#}
 
-#resource "aws_sns_topic" "member_config_delivery" {
-#  name = "config-delivery-topic"
-#  kms_master_key_id = "alias/aws/sns"
-#}
-
+########## start: Alternative approach to AWS Config setup (without Quick Setup)
+### S3 bucket for Config delivery channel must be setup manually
+###
 #resource "aws_s3_bucket" "member_config" {
 #
-#  #  bucket        = "chprorg-${data.aws_caller_identity.member.account_id}-${data.aws_region.member.region}"
+#  #  Default naming convention
 #  bucket = "config-bucket-${data.aws_caller_identity.member.account_id}"
 #  #  force_destroy = true
 #
@@ -362,14 +353,33 @@ resource "aws_ssmquicksetup_configuration_manager" "member_config_quicksetup" {
 #    Name = "config-bucket-${data.aws_caller_identity.member.account_id}"
 #  }
 #}
-
+#
 #resource "aws_s3_bucket_policy" "config_access" {
 #  #provider = aws.member
 #
 #  bucket = aws_s3_bucket.member_config.id
 #  policy = data.aws_iam_policy_document.config_access.json
 #}
-
+#
+### Service role for AWS Config must be created
+##
+#data "aws_iam_policy_document" "assume_role" {
+#  statement {
+#    effect = "Allow"
+#
+#    principals {
+#      type        = "Service"
+#      identifiers = ["config.amazonaws.com"]
+#    }
+#
+#    actions = ["sts:AssumeRole"]
+#  }
+#}
+#
+#resource "aws_iam_role" "awsconfig-example" {
+#  name               = "awsconfig-example"
+#  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+#}
 #data "aws_iam_policy_document" "config_access" {
 #  statement {
 #    sid    = "AWSConfigBucketCheck"
@@ -414,55 +424,31 @@ resource "aws_ssmquicksetup_configuration_manager" "member_config_quicksetup" {
 #   }
 # }
 #}
-
-
+#
+### IMPORTANT: Delivery Channel must be set up in each region
+###
+#resource "aws_config_delivery_channel" "member" {
+#  provider = aws.member
+#  depends_on     = [aws_config_configuration_recorder.member]
+#
+#  s3_bucket_name = aws_s3_bucket.member_config.bucket
+#  snapshot_delivery_properties {
+#    delivery_frequency = "One_Hour"
+#  }
+#}
+#
+### IMPORTANT: Configuration Recorder must be set up in each region
+###
 #resource "aws_config_configuration_recorder" "member" {
 #  provider = aws.member
 #
 #  name     = "member-config-recorder"
 #  role_arn = aws_iam_role.r.arn
 #}
-#
-#data "aws_iam_policy_document" "assume_role" {
-#  statement {
-#    effect = "Allow"
-#
-#    principals {
-#      type        = "Service"
-#      identifiers = ["config.amazonaws.com"]
-#    }
-#
-#    actions = ["sts:AssumeRole"]
-#  }
-#}
-#
-#resource "aws_iam_role" "r" {
-#  name               = "awsconfig-example"
-#  assume_role_policy = data.aws_iam_policy_document.assume_role.json
-#}
+########## end: Alternative approach to AWS Config setup (without Quick Setup)
 
-#resource "aws_config_config_rule" "member_guardrails_global" {
-#  #provider = aws.member
-#  #  depends_on = [aws_config_configuration_recorder.member]
-#  depends_on = [aws_ssmquicksetup_configuration_manager.member_config_quicksetup]
-#
-#  for_each = toset(var.desired_managed_rules_global)
-#  name     = each.key
-#
-#  source {
-#    owner             = "AWS"
-#    source_identifier = each.key
-#  }
-#
-#  #  input_parameters = jsonencode(each.value.parameters)
-#
-#  tags = {
-#    Name = "Baseline__${each.key}"
-#  }
-#}
 
 ########## start: Config Rules for compliance checking
-
 resource "aws_config_config_rule" "member_guardrails_all" {
   depends_on = [aws_ssmquicksetup_configuration_manager.member_config_quicksetup]
 
@@ -502,7 +488,6 @@ locals {
     "${rule.rule_id}__${rule.region}" => rule
   }
 }
-
 ########## end: Config Rules for compliance checking
 
 
@@ -518,38 +503,47 @@ data "aws_iam_policy_document" "default_assume_role_policy" {
   }
 }
 
+#### ReadOnlyAdmin role
+####
 resource "aws_iam_role" "readonly_admin" {
   name               = "ReadOnlyAdmin"
   description        = "Baseline read-only role"
   path               = "/base/"
   assume_role_policy = data.aws_iam_policy_document.default_assume_role_policy.json
+  tags = {
+    Name = "ReadOnlyAdmin"
+  }
 }
 
+## 'ReadOnlyAccess' (AWS-managed policy) provides access to view all
+##    services, configuration, and data (including secrets!)
 resource "aws_iam_role_policy_attachment" "readonly_managed" {
   role       = aws_iam_role.readonly_admin.name
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
+#### Developer role
+####
 resource "aws_iam_role" "developer" {
   name               = "Developer"
   description        = "Baseline developer role"
   path               = "/base/"
   assume_role_policy = data.aws_iam_policy_document.default_assume_role_policy.json
   tags = {
-    env = "dev"
+    Name = "Developer"
+    env  = "dev"
   }
 }
 
-resource "aws_iam_role_policy_attachment" "dev_readonly" {
-  role       = aws_iam_role.developer.name
-  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
-}
-
+## 'PowerUserAccess' (AWS-managed policy) provides near-Administrator access,
+##    except for IAM, Billing, Organizations, and Account Management
 resource "aws_iam_role_policy_attachment" "dev_poweruser" {
   role       = aws_iam_role.developer.name
   policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
 }
 
+## Custom policy grants read-only IAM permissions to enable developers to
+##    troubleshoot access issues
 resource "aws_iam_policy" "allow_iam_readonly_policy" {
   name        = "allow-iam-readonly"
   path        = "/base/"
@@ -565,21 +559,25 @@ resource "aws_iam_role_policy_attachment" "dev_iam_readonly" {
   policy_arn = aws_iam_policy.allow_iam_readonly_policy.arn
 }
 
-resource "aws_iam_policy" "restricted_iam_policy" {
-  name        = "deny-iam-unless-tags-match"
+## Custom policy to deny access to resources that are not tagged with an
+##    'env' value matching the value of the IAM principal
+resource "aws_iam_policy" "restrict_nonmatching_tags_policy" {
+  name        = "deny-unless-tags-match"
   path        = "/base/"
-  description = "Deny IAM actions unless principal and resource env tags match"
+  description = "Deny actions unless principal and resource env tags match"
   policy      = file("${path.module}/policy/iam-deny-unless-tags-match.json")
   tags = {
-    Name = "deny-iam-unless-tags-match"
+    Name = "deny-unless-tags-match"
   }
 }
 
-resource "aws_iam_role_policy_attachment" "dev_restricted_iam" {
+resource "aws_iam_role_policy_attachment" "dev_restrict_nonmatching_tags" {
   role       = aws_iam_role.developer.name
-  policy_arn = aws_iam_policy.restricted_iam_policy.arn
+  policy_arn = aws_iam_policy.restrict_nonmatching_tags_policy.arn
 }
 
+#### DatabaseAdmin role
+####
 resource "aws_iam_role" "database_admin" {
   name               = "DatabaseAdmin"
   description        = "Baseline database administrator role, initially based on AWS-managed job function policy"
@@ -590,9 +588,10 @@ resource "aws_iam_role" "database_admin" {
   }
 }
 
+## 'DatabaseAdministrator' (AWS-managed policy) provides broad access to
+##    data services like DynamoDB, ElastiCache, and RDS
 resource "aws_iam_role_policy_attachment" "database_admin_managed" {
   role       = aws_iam_role.database_admin.name
   policy_arn = "arn:aws:iam::aws:policy/job-function/DatabaseAdministrator"
 }
-
 ########## end: Baseline IAM Roles

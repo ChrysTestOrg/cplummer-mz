@@ -23,6 +23,7 @@ provider "aws" {
     tags = {
       managed_by = "terraform"
       solution   = "infra-C2"
+      env        = "prod"
     }
   }
 }
@@ -33,6 +34,7 @@ provider "aws" {
     tags = {
       managed_by = "terraform"
       solution   = "infra-C2"
+      env        = "prod"
     }
   }
 }

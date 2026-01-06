@@ -10,6 +10,7 @@ Terraform configuration that implements a governance and security configuration 
 - *Policy*: Ensure that AWS resources in the regulated account can only be deployed and accessed from approved regions.
 - *Rationale*: Restricting use to specific regions helps to control costs, comply with data residency requirements, and ensure that resources cannot be created or accessed from regions where compliance controls are not configured.
 
+
 ### Centralized CloudTrail log bucket
 - *Policy*: CloudTrail logs for management events in the regulated account should be written to a centralized S3 bucket in a separate AWS account. This bucket must be configured to allow access by the CloudTrail service principal in order for cross-account logging to succeed.
 - *Rationale*: Saving audit data to a separate account prevents an attacker who gains control of the regulated account from deleting log data to cover their tracks or avoid detection.
@@ -22,18 +23,22 @@ Terraform configuration that implements a governance and security configuration 
 - *Rationale*: Saving audit data to a separate account prevents an attacker who gains control of the regulated account from covering their tracks to avoid detection. Enabling log file validation ensures that log integrity is maintained when they are written. Utilizing a customer-managed KMS key in the regulated account to encrypt the CloudTrail logs adds an additional layer of protection to prevent the logs from being read by an unauthorized user or service principal, even if they have permission to read objects in the centralized log bucket itself.
 
 
-#### KMS customer-managed key
+### KMS customer-managed key
 - *Policy*: A customer-managed KMS key should be used to encrypt CloudTrail logs. This key must be configured to allow access by the CloudTrail service principal, but only when accessed using the expected encryption context and source ARN of the configured trail. IAM users/roles within the regulated account may also be permitted to decrypt logs using this KMS key, if allowed by a corresponding identity-based permissions policy.
 - *Rationale*: Utilizing a customer-managed KMS key in the regulated account to encrypt the CloudTrail logs adds an additional layer of protection to prevent the logs from being read by an unauthorized user or service principal, even if they have permission to read objects in the centralized log bucket itself.
 
 
-### AWS Config recording and detection of non-compliance
+### AWS Config recording
 
 #### SSM QuickSetup
 - *Policy*: AWS Config delivery channels and configuration recorders should be enabled in all approved regions. The AWS Systems Manager (SSM) Quick Setup Configuration Manager enables automatic deployment of these required components to multiple target regions.
 - *Rationale*: As a regional service, it is necessary to setup AWS Config separately in each region where resources need to be monitored. Utilizing SSM Quick Setup simplifies the deployment and configuration of an AWS Config configuration recorder and delivery channel to all approved regions, and enables easy onboarding of additional regions in the future as needed.
 
-#### AWS-managed Config Rules to detect non-compliance - audit logging and credential management standards
+
+### AWS-managed Config Rules to detect non-compliance
+
+#### Audit logging and credential management standards
+This set of rules monitors that IAM and CloudTrail are configured according to standards (as described by the *Policy* statement for each rule).
 
 [ACCESS_KEYS_ROTATED](https://docs.aws.amazon.com/config/latest/developerguide/access-keys-rotated.html) (global)
 - *Policy*: All IAM access keys should be rotated at least once every 90 days.
@@ -74,7 +79,9 @@ Terraform configuration that implements a governance and security configuration 
   - is encrypted with a KMS key
 - *Rationale*: Continuous audit logging captures administrative actions, enabling detection of suspicious activity and supporting forensic investigations.
 
-#### AWS-managed Config Rules to detect non-compliance - publicly accessible resources
+
+#### Restrict data resources from public access
+This set of rules monitors that resources which may contain sensitive or confidential data are not publicly exposed.
 
 [EBS_SNAPSHOT_PUBLIC_RESTORABLE_CHECK](https://docs.aws.amazon.com/config/latest/developerguide/ebs-snapshot-public-restorable-check.html) (regional)
 - *Policy*: EBS snapshots should not be shared publicly.
@@ -100,7 +107,25 @@ Terraform configuration that implements a governance and security configuration 
 - *Policy*: RDS snapshots should not be shared publicly.
 - *Rationale*: Public snapshot sharing can leak entire database contents, including sensitive customer or business data.
 
-#### AWS-managed Config Rules to detect non-compliance - unencrypted data at rest
+[REDSHIFT_CLUSTER_PUBLIC_ACCESS_CHECK](https://docs.aws.amazon.com/config/latest/developerguide/redshift-cluster-public-access-check.html) (regional)
+- *Policy*: Redshift clusters should have `PubliclyAccessible` set to false.
+- *Rationale*: Prevents the cluster from being reachable from the internet, reducing exposure to unauthorized queries and data exfiltration.
+
+[S3_ACCESS_POINT_PUBLIC_ACCESS_BLOCKS](https://docs.aws.amazon.com/config/latest/developerguide/s3-access-point-public-access-blocks.html) (regional)
+- *Policy*: All S3 access points should be restricted from public access.
+- *Rationale*: Blocking public access prevents accidental data exposure, a common cause of data breaches in cloud storage.
+- *Optional Parameters*: 
+  - `excludedAccessPoints` - (CSV) list of allowed public S3 access point names
+
+[S3_BUCKET_LEVEL_PUBLIC_ACCESS_PROHIBITED](https://docs.aws.amazon.com/config/latest/developerguide/s3-bucket-level-public-access-prohibited.html) (regional)
+- *Policy*: All S3 buckets should be restricted from public access.
+- *Rationale*: Blocking public access prevents accidental data exposure, a common cause of data breaches in cloud storage.
+- *Optional Parameters*: 
+  - `excludedAccessPoints` - (CSV) list of allowed public S3 bucket names
+
+
+#### Encryption standards for data at rest
+This set of rules monitors that encryption is enabled by default, and individual database, volume, and filesystem resources are encrypted at rest.
 
 [EC2_EBS_ENCRYPTION_BY_DEFAULT](https://docs.aws.amazon.com/config/latest/developerguide/ec2-ebs-encryption-by-default.html) (regional)
 - *Policy*: The account‑level setting “EBS encryption by default” should be enabled, ensuring all newly created EBS volumes are encrypted at rest.
@@ -124,23 +149,9 @@ Terraform configuration that implements a governance and security configuration 
 - *Policy*: The `StorageEncrypted` flag should be set to true for every RDS instance.
 - *Rationale*: Encryption of the underlying storage protects data at rest and satisfies compliance requirements for many regulated workloads.
 
-[REDSHIFT_CLUSTER_PUBLIC_ACCESS_CHECK](https://docs.aws.amazon.com/config/latest/developerguide/redshift-cluster-public-access-check.html) (regional)
-- *Policy*: Redshift clusters should have `PubliclyAccessible` set to false.
-- *Rationale*: Prevents the cluster from being reachable from the internet, reducing exposure to unauthorized queries and data exfiltration.
 
-[S3_ACCESS_POINT_PUBLIC_ACCESS_BLOCKS](https://docs.aws.amazon.com/config/latest/developerguide/s3-access-point-public-access-blocks.html) (regional)
-- *Policy*: All S3 access points should be restricted from public access.
-- *Rationale*: Blocking public access prevents accidental data exposure, a common cause of data breaches in cloud storage.
-- *Optional Parameters*: 
-  - `excludedAccessPoints` - (CSV) list of allowed public S3 access point names
-
-[S3_BUCKET_LEVEL_PUBLIC_ACCESS_PROHIBITED](https://docs.aws.amazon.com/config/latest/developerguide/s3-bucket-level-public-access-prohibited.html) (regional)
-- *Policy*: All S3 buckets should be restricted from public access.
-- *Rationale*: Blocking public access prevents accidental data exposure, a common cause of data breaches in cloud storage.
-- *Optional Parameters*: 
-  - `excludedAccessPoints` - (CSV) list of allowed public S3 bucket names
-
-#### Optional (not currently enabled) AWS-managed Config Rules to detect non-compliance - user MFA and encryption in transit
+#### User MFA and encryption in transit (optional - NOT currently enabled)
+This set of rules could be enabled in the future (based on organization requirements) to monitor MFA for IAM users and database/S3 encryption in transit.
 
 [IAM_USER_MFA_ENABLED](https://docs.aws.amazon.com/config/latest/developerguide/iam-user-mfa-enabled.html) (global)
 - *Policy*: All IAM users with password-based access to the AWS management console should have MFA enabled.
@@ -178,17 +189,18 @@ Description: Grants read-only access to all resources and data in the account. *
 - Trust Policy (custom): [`iam-trust-mfa-users`](iam-trust-mfa-users.json) - This role may be assumed by IAM users in the same account who have successfully authenticated to the AWS management console with MFA, and have an identity-based policy granting `sts:AssumeRole` permission.
 - Permissions Policy (AWS-managed): [ReadOnlyAccess](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html#awsmp_readonlyaccess)
 
+
 #### Role: Database administrator
 Description: Grants access typically required by database administrators to AWS services and resources in the account. *NOTE: this role includes broad access to S3 in addition to DynamoDB, ElastiCache, RDS, and Redshift. It also permits `iam:PassRole` with roles that match specific naming conventions for RDS monitoring and Lambda access. However, since none of the baseline roles grant access to create IAM roles, an administrator would need to create a properly named role that the DatabaseAdministrator is allowed to pass.*
 
 - Trust Policy (custom): [`iam-trust-mfa-users`](iam-trust-mfa-users.json) - This role may be assumed by IAM users in the same account who have successfully authenticated to the AWS management console with MFA, and have an identity-based policy granting `sts:AssumeRole` permission.
 - Permissions Policy (AWS-managed): [DatabaseAdministrator](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html#jf_database-administrator)
 
+
 #### Role: Developer
 Description: Grants broad "power user" access typically required by developers to AWS services and resources in the account, including **Administrator-Level** access to most services (excluding IAM, Organizations, and Account Management). *NOTE: this role includes access to read all data objects, including secrets and keys, but ONLY if the resource being accessed has an `env` tag whose value matches the value of the `env` tag on the role itself (currently `env=dev`).*
 
 - Trust Policy (custom): [`iam-trust-mfa-users`](iam-trust-mfa-users.json) - This role may be assumed by IAM users in the same account who have successfully authenticated to the AWS management console with MFA, and have an identity-based policy granting `sts:AssumeRole` permission.
 - Permissions Policy (AWS-managed): [PowerUserAccess](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html#jf_developer-power-user)
-- Permissions Policy (AWS-managed): [ReadOnlyAccess](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html#awsmp_readonlyaccess)
 - Permissions Policy (customer-managed): [`allow-iam-readonly`](policy/iam-allow-iam-readonly.json)
-- Permissions Policy (customer-managed): [`deny-iam-unless-tags-match`](policy/iam-deny-unless-tags-match.json)
+- Permissions Policy (customer-managed): [`deny-unless-tags-match`](policy/iam-deny-unless-tags-match.json)
